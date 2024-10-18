@@ -1,8 +1,5 @@
 import java.lang.reflect.Array;
-import java.util.Scanner;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -154,7 +151,7 @@ public class Image{
         Point A, B, C, H;
         double h, m, b;
         double[] coef1= new double[3] , coef2 = new double[3];
-        Point[][] areasOrder = new Point[3][3];
+        Point[][] areasOrder_points = new Point[3][3];
 
         for (; i < 3; i++) {
             if (i==0){
@@ -183,8 +180,8 @@ public class Image{
 
                 for (i=0; i<= steps; i++){
                     t = (double) i / steps;
-                    int new_x = (int) Math.round(A.x + (t * dx));
-                    int new_y = (int) Math.round(A.y + (t * dy));
+                    int new_x = (int) Math.ceil(A.x + (t * dx));
+                    int new_y = (int) Math.ceil(A.y + (t * dy));
 
                     H.x = new_x;
                     H.y = new_y;
@@ -195,9 +192,9 @@ public class Image{
                     }
                 }
 
-                areasOrder[0] = null;
-                areasOrder[1] = new Point[]{A, C, H};
-                areasOrder[2] = new Point[]{B, C, H};
+                areasOrder_points[0] = null;
+                areasOrder_points[1] = new Point[]{A, C, H};
+                areasOrder_points[2] = new Point[]{B, C, H};
 
             }
 
@@ -229,21 +226,114 @@ public class Image{
             Point[] ps2 = {A, C, H};
             Point[] ps3 = {C, B, H};
 
-            areasOrder[0] = ps1;
+            double area_ps1, area_ps2, area_ps3;
+            area_ps1 = calc_area(ps1);
+            area_ps2 = calc_area(ps2);
+            area_ps3 = calc_area(ps3);
+            int areasInZero = 0;
+            areasInZero = (area_ps1==0.0) ? areasInZero+1 : areasInZero;
+            areasInZero = (area_ps2==0.0) ? areasInZero+1 : areasInZero;
+            areasInZero = (area_ps3==0.0) ? areasInZero+1 : areasInZero;
 
-            double curr_area, curr_area1;
-            curr_area = calc_area(ps1);
-            if (calc_area(ps1) >= area_min){
-                double sum_area = calc_area(ps1) + calc_area(ps2) + calc_area(ps3);
-                if (sum_area <= trial_area){
-                    curr_area = calc_area(ps2);
-                    curr_area1 = calc_area(ps3);
-                    if (calc_area(ps2) < calc_area(ps3)){
-                        areasOrder[1] = ps2;
-                        areasOrder[2] = ps3;
+            if (areasInZero > 1){
+                continue;
+            } else if (areasInZero == 1){
+                int dx = C.x - A.x;
+                int dy = C.y - A.y;
+
+                int x_h1 = Math.abs(H.x - A.x);
+                int x_h2 = Math.abs(H.x - C.x);
+                int steps1 = Math.max(x_h1, x_h2);
+                int y_h1 = Math.abs(H.y - A.y);
+                int y_h2 = Math.abs(H.y - C.y);
+                int steps2 = Math.max(y_h1, y_h2);
+
+                int steps = Math.max(steps1, steps2);
+                /*int steps = Math.max(Math.abs(dx), Math.abs(dy));*/
+                double t;
+                int s = 1;
+                i=0;
+                Point M = new Point(0,0);
+                Point[] cur_points = {A, M, H};
+
+                while (i <= steps) {
+                    t = i/steps;
+                    int new_x = (int) (H.x + (s)*(t * dx));
+                    int new_y = (int) (H.y + (s)*(t * dy));
+                    M.x = new_x;
+                    M.y = new_y;
+                    cur_points[1] = M;
+
+                    boolean equals1 = Objects.equals(M.toString(), A.toString());
+                    boolean equals2 = Objects.equals(M.toString(), C.toString());
+                    if (!((calc_area(cur_points) >= area_min) && (!equals1) && (!equals2))) {
+                        if (s > 0){s = (-1)*s;}
+                        else {
+                            i++;
+                            s = (-1)*s;
+                        }
                     } else {
-                        areasOrder[1] = ps3;
-                        areasOrder[2] = ps2;
+                        break;
+                    }
+                }
+
+                for (i=0; i<= steps; i++){
+                    t = (double) i / steps;
+                    int new_x = (int) Math.ceil(A.x + (t * dx));
+                    int new_y = (int) Math.ceil(A.y + (t * dy));
+
+                    M.x = new_x;
+                    M.y = new_y;
+
+                    Point[] cur_points = {A, M, H};
+                    if (calc_area(cur_points) < area_min){
+                        i--;
+                        t = (double) i / steps;
+                        new_x = (int) Math.ceil(B.x + (t * dx));
+                        new_y = (int) Math.ceil(B.y + (t * dy));
+                        M.x = new_x;
+                        M.y = new_y;
+                        cur_points[1] =M;
+                        i++;
+
+                        if ((Objects.equals(M.toString(), B.toString())) || (Objects.equals(M.toString(), C.toString()))){
+                            i++;
+                            t = (double) i / steps;
+                            new_x = (int) Math.ceil(B.x + (t * dx));
+                            new_y = (int) Math.ceil(B.y + (t * dy));
+                            M.x = new_x;
+                            M.y = new_y;
+                            cur_points[1] =M;
+                        }
+
+                        ps1[1] = M;
+                        ps2[2] = M;
+                        ps3[0] = A;
+                        /*Expected
+                        ps1 = {A, M, H};
+                        ps2 = {A, C, M};
+                        ps3 = {A, B, H};*/
+                        break;
+                    }
+                }
+
+                area_ps1 = calc_area(ps1);
+                area_ps2 = calc_area(ps2);
+                area_ps3 = calc_area(ps3);
+
+            }
+
+            areasOrder_points[0] = ps1;
+
+            if (area_ps1 >= area_min){
+                double sum_area = area_ps1 + area_ps2 + area_ps3;
+                if (sum_area <= trial_area){
+                    if (area_ps2 < area_ps3){
+                        areasOrder_points[1] = ps2;
+                        areasOrder_points[2] = ps3;
+                    } else {
+                        areasOrder_points[1] = ps3;
+                        areasOrder_points[2] = ps2;
                     }
                     break;
                 }
@@ -251,14 +341,14 @@ public class Image{
         }
 
         if (newTrianglesNum == 2){
-            traingles(indexOrder.get(0), areasOrder[0]);
-            traingles(indexOrder.get(1), areasOrder[1]);
-            traingles(indexOrder.get(2), areasOrder[2]);
+            traingles(indexOrder.get(0), areasOrder_points[0]);
+            traingles(indexOrder.get(1), areasOrder_points[1]);
+            traingles(indexOrder.get(2), areasOrder_points[2]);
         }
         if (newTrianglesNum == 3) {
-            traingles(indexOrder.get(0), areasOrder[0]);
-            traingles(indexOrder.get(1), areasOrder[1]);
-            traingles(indexOrder.get(2), areasOrder[2]);
+            traingles(indexOrder.get(0), areasOrder_points[0]);
+            traingles(indexOrder.get(1), areasOrder_points[1]);
+            traingles(indexOrder.get(2), areasOrder_points[2]);
         }
 
         return true;
