@@ -86,11 +86,31 @@ public class Image{
     }
 
     public static boolean traingles(int n, Point[] points) {
+        if (tree.get(n) == 0){
+            solutions.set(n, n+" 0");
+            return true;
+        }
+
         double trial_area = calc_area(points);
-        if (areas.get(n) > trial_area) {
+        double cur_area = areas.get(n);
+        if (cur_area > trial_area) {
             return false;
         }
         solutions.set(n, n+" "+points[0]+","+points[1]+","+points[2]);
+
+        int child_index = (3 * n) + 1;
+        if (child_index > tree.size()) {
+            return true;
+        }
+        int newTrianglesNum = tree.get(child_index) + tree.get(child_index + 1) + tree.get(child_index + 2);
+
+        Point[] point_a = null;
+        if (newTrianglesNum == 0){
+            traingles(child_index, point_a);
+            traingles(child_index+2, point_a);
+            traingles(child_index+3, point_a);
+            return true;
+        }
 
         int index_area_min = 3 * n + 1;
         ArrayList<Integer> indexOrder = new ArrayList<>();
@@ -116,8 +136,15 @@ public class Image{
             indexOrder.add(3 * n + 3);
         }
 
-        int child_index = 3 * n + 1;
-        int newTrianglesNum = tree.get(child_index) + tree.get(child_index + 1) + tree.get(child_index + 2);
+        /*One child*/
+        if (newTrianglesNum == 1){
+            traingles(indexOrder.get(0), points);
+            traingles(indexOrder.get(1), points);
+            traingles(indexOrder.get(2), points);
+            return true;
+        }
+
+        /*2 or 3 chidren*/
 
         double[] bases = new double[3];
         bases[0] = calc_distance(points[0], points[1]);
@@ -144,7 +171,7 @@ public class Image{
                 C = points[1];
             }
 
-            if (child_index == 2){
+            if (newTrianglesNum == 2){
                 int dx = B.x - A.x;
                 int dy = B.y - A.y;
 
@@ -152,18 +179,26 @@ public class Image{
 
                 double t;
                 i=0;
+                H = new Point(0,0);
+
                 for (i=0; i<= steps; i++){
                     t = (double) i / steps;
                     int new_x = (int) Math.round(A.x + (t * dx));
                     int new_y = (int) Math.round(A.y + (t * dy));
 
-                    H = new Point(new_x, new_y);
+                    H.x = new_x;
+                    H.y = new_y;
 
-                    Point[] cur_points = {A, B, H};
+                    Point[] cur_points = {A, C, H};
                     if (Math.abs(calc_area(cur_points) - area_min) < 0.01){
                         break;
                     }
                 }
+
+                areasOrder[0] = null;
+                areasOrder[1] = new Point[]{A, C, H};
+                areasOrder[2] = new Point[]{B, C, H};
+
             }
 
             h = Math.ceil((2* area_min) / bases[i]);
@@ -202,12 +237,15 @@ public class Image{
             }
         }
 
+        if (newTrianglesNum == 2){
+            traingles(indexOrder.get(0), areasOrder[0]);
+            traingles(indexOrder.get(1), areasOrder[1]);
+            traingles(indexOrder.get(2), areasOrder[2]);
+        }
         if (newTrianglesNum == 3) {
             traingles(indexOrder.get(0), areasOrder[0]);
             traingles(indexOrder.get(1), areasOrder[1]);
             traingles(indexOrder.get(2), areasOrder[2]);
-        } else if (newTrianglesNum == 2) {
-
         }
 
         return true;
@@ -248,12 +286,20 @@ public class Image{
 
     Point P1, P2, P3;
     P1 = points[0]; P2 = points[1]; P3 = points[2];
+    Point[] points_root = {P1, P2, P3};
 
     int node = 0;
 
     double total_area_req = areas(node);
 
-    
+    if (!traingles(node, points_root)){
+        System.out.println("None");
+    } else {
+        for (int j=0; j<tree.size(); j++){
+            System.out.println(solutions.get(j));
+        }
+    }
+
     scan.close();
     }
 }
