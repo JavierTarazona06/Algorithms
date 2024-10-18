@@ -54,7 +54,7 @@ public class Image{
         t1 = points[0].x * (points[1].y - points[2].y);
         t2 = points[1].x * (points[2].y - points[0].y);
         t3 = points[2].x * (points[0].y - points[1].y);
-        return (1.0/2.0)*(t1 +t2 +t3);
+        return (1.0/2.0)*Math.abs((t1 +t2 +t3));
     }
 
     public static double calc_distance(Point p1, Point p2){
@@ -99,7 +99,7 @@ public class Image{
         solutions.set(n, n+" "+points[0]+","+points[1]+","+points[2]);
 
         int child_index = (3 * n) + 1;
-        if (child_index > tree.size()) {
+        if (child_index > tree.size()-1) {
             return true;
         }
         int newTrianglesNum = tree.get(child_index) + tree.get(child_index + 1) + tree.get(child_index + 2);
@@ -107,8 +107,8 @@ public class Image{
         Point[] point_a = null;
         if (newTrianglesNum == 0){
             traingles(child_index, point_a);
+            traingles(child_index+1, point_a);
             traingles(child_index+2, point_a);
-            traingles(child_index+3, point_a);
             return true;
         }
 
@@ -202,19 +202,28 @@ public class Image{
             }
 
             h = Math.ceil((2* area_min) / bases[i]);
+
+            if ((B.x - A.x) == 0){
+                continue;
+            }
+
             m = (double) (B.y - A.y) / (B.x - A.x);
             b = A.y - (m* A.x);
 
-            coef1[0] = 1/m;
-            coef1[1] = 1.0;
-            coef1[2] = (double) ((A.y + B.y) /2) + ((A.x + B.x)/(2*m));
+            if (m==0){
+                H = new Point(C.x, (int) (A.y+h));
+            } else {
+                coef1[0] = 1/m;
+                coef1[1] = 1.0;
+                coef1[2] = (double) ((A.y + B.y) /2) + ((A.x + B.x)/(2*m));
 
-            coef2[0] = m;
-            coef2[1] = -1.0;
-            coef2[2] = (h*Math.sqrt(Math.pow(m,2)+1)) - b;
+                coef2[0] = m;
+                coef2[1] = -1.0;
+                coef2[2] = (h*Math.sqrt(Math.pow(m,2)+1)) - b;
 
-            double[] result = syst_equa_2_2(coef1, coef2);
-            H = new Point((int) result[0], (int) result[1]);
+                double[] result = syst_equa_2_2(coef1, coef2);
+                H = new Point((int) Math.ceil(result[0]), (int) Math.ceil(result[1]));
+            }
 
             Point[] ps1 = {A, B, H};
             Point[] ps2 = {A, C, H};
@@ -222,9 +231,13 @@ public class Image{
 
             areasOrder[0] = ps1;
 
+            double curr_area, curr_area1;
+            curr_area = calc_area(ps1);
             if (calc_area(ps1) >= area_min){
                 double sum_area = calc_area(ps1) + calc_area(ps2) + calc_area(ps3);
                 if (sum_area <= trial_area){
+                    curr_area = calc_area(ps2);
+                    curr_area1 = calc_area(ps3);
                     if (calc_area(ps2) < calc_area(ps3)){
                         areasOrder[1] = ps2;
                         areasOrder[2] = ps3;
