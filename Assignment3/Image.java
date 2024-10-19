@@ -4,17 +4,49 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Image{
-    static class Point{
+    static class Point implements Cloneable {
         int x, y;
 
-        Point(int x, int y){
+        Point(int x, int y) {
             this.x = x;
             this.y = y;
         }
 
         @Override
-        public String toString(){
+        protected Point clone(){
+            return new Point(this.x, this.y);
+        }
+
+        @Override
+        public String toString() {
             return "(" + x + "," + y + ")";
+        }
+    }
+
+    static class Line {
+        public double m;
+        public double b;
+        public boolean isVertical;
+        public double xConstant;
+
+        public Line(Point p1, Point p2) {
+            if (p2.x - p1.x == 0) {
+                this.isVertical = true;
+                this.xConstant = p1.x;
+            } else {
+                this.isVertical = false;
+                this.m = (p2.y - p1.y) / (p2.x - p1.x); // Calculate the slope
+                this.b = p1.y - m * p1.x; // Calculate the y-intercept
+            }
+        }
+
+        public boolean isP_in_Line(Point p) {
+            if (isVertical) {
+                return Math.abs(p.x - xConstant) == 0;
+            } else {
+                double yOnLine = m * p.x + b;
+                return Math.abs(p.y - yOnLine) == 0;
+            }
         }
     }
 
@@ -82,7 +114,39 @@ public class Image{
         return rest;
     }
 
-    public static boolean traingles(int n, Point[] points) {
+    public static double crossProd(Point p1, Point p2){
+        return (p1.x*p2.y) - (p1.y*p2.x);
+    }
+
+    public static boolean isPoinTriag(Point P, Point p1, Point p2, Point p3){
+        Point cur_point1 = new Point(0,0);
+        Point cur_point2 = new Point(0,0);
+
+        cur_point1.x = p2.x - p1.x;
+        cur_point1.y = p2.y - p1.y;
+        cur_point2.x = P.x - p1.x;
+        cur_point2.y = P.y - p1.y;
+        double d1 = crossProd(cur_point1, cur_point2);
+
+        cur_point1.x = p3.x - p2.x;
+        cur_point1.y = p3.y - p2.y;
+        cur_point2.x = P.x - p2.x;
+        cur_point2.y = P.y - p2.y;
+        double d2 = crossProd(cur_point1, cur_point2);
+
+        cur_point1.x = p1.x - p3.x;
+        cur_point1.y = p1.y - p3.y;
+        cur_point2.x = P.x - p3.x;
+        cur_point2.y = P.y - p3.y;
+        double d3 = crossProd(cur_point1, cur_point2);
+
+        boolean hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        boolean hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        return !(hasNeg && hasPos);
+    }
+
+    public static boolean traingles(int n, Point[] points){
         if (tree.get(n) == 0){
             solutions.set(n, n+" 0");
             return true;
@@ -142,214 +206,216 @@ public class Image{
         }
 
         /*2 or 3 chidren*/
+        Point p1 = points[0].clone();
+        Point p2 = points[0].clone();
+        Point p3 = points[0].clone();
 
-        double[] bases = new double[3];
-        bases[0] = calc_distance(points[0], points[1]);
-        bases[1] = calc_distance(points[1], points[2]);
-        bases[2] = calc_distance(points[2], points[0]);
-        int i = 0;
-        Point A, B, C, H;
-        double h, m, b;
-        double[] coef1= new double[3] , coef2 = new double[3];
-        Point[][] areasOrder_points = new Point[3][3];
+        int min_x, max_x, min_y, max_y;
+        min_x = p1.x;
+        max_x = p1.x;
+        min_y = p1.y;
+        max_y = p1.y;
 
-        for (; i < 3; i++) {
-            if (i==0){
-                A = points[0];
-                B = points[1];
-                C = points[2];
-            } else if (i == 1){
-                A = points[1];
-                B = points[2];
-                C = points[0];
-            } else {
-                A = points[2];
-                B = points[0];
-                C = points[1];
-            }
+        if (p2.x < min_x){min_x = p2.x;
+        } else if (p2.x > max_x){ max_x = p2.x;}
+        if (p2.y < min_y){min_y = p2.y;
+        } else if (p2.y > max_y){ max_y = p2.y;}
 
-            if (newTrianglesNum == 2){
-                int dx = B.x - A.x;
-                int dy = B.y - A.y;
+        if (p3.x < min_x){min_x = p3.x;
+        } else if (p3.x > max_x){ max_x = p3.x;}
+        if (p3.y < min_y){min_y = p3.y;
+        } else if (p3.y > max_y){ max_y = p3.y;}
 
-                int steps = Math.max(Math.abs(dx), Math.abs(dy));
+        Point[] viable_vertex = new Point[3];
+        double curr_less_area = trial_area;
+        Point H = new Point(0,0);
+        int k_win = 0;
 
-                double t;
-                i=0;
-                H = new Point(0,0);
+        ArrayList<Point> points_inAB = new ArrayList<>();
+        ArrayList<Point> points_inBC = new ArrayList<>();
+        ArrayList<Point> points_inCA = new ArrayList<>();
 
-                for (i=0; i<= steps; i++){
-                    t = (double) i / steps;
-                    int new_x = (int) Math.ceil(A.x + (t * dx));
-                    int new_y = (int) Math.ceil(A.y + (t * dy));
+        Line lineAB = new Line(p1, p2);
+        Line lineBC = new Line(p2, p3);
+        Line lineCA = new Line(p3, p1);
 
-                    H.x = new_x;
-                    H.y = new_y;
+        for (int i = min_y; i < max_y+1; i++){
+            for (int j = min_x; j < max_x+1; j++){
+                Point current_point = new Point(0,0);
+                current_point.x = j; current_point.y = i;
 
-                    Point[] cur_points = {A, C, H};
-                    if (Math.abs(calc_area(cur_points) - area_min) < 0.01){
-                        break;
+                if (!((Objects.equals(current_point.toString(), p1.toString())) ||
+                        Objects.equals(current_point.toString(), p2.toString()) ||
+                        Objects.equals(current_point.toString(), p3.toString()))) {
+                    if (lineAB.isP_in_Line(current_point)) {
+                        points_inAB.add(current_point);
                     }
-                }
+                    if (lineBC.isP_in_Line(current_point)) {
+                        points_inBC.add(current_point);
+                    }
+                    if (lineCA.isP_in_Line(current_point)) {
+                        points_inCA.add(current_point);
+                    }
 
-                areasOrder_points[0] = null;
-                areasOrder_points[1] = new Point[]{A, C, H};
-                areasOrder_points[2] = new Point[]{B, C, H};
+                    if (isPoinTriag(current_point.clone(), p1.clone(), p2.clone(), p3.clone())) {
+                        for (int k = 0; k < 3; k++) {
+                            Point[] possible_vertex = new Point[3];
+                            if (k == 0) {
+                                possible_vertex[0] = current_point.clone();
+                                possible_vertex[1] = p1.clone();
+                                possible_vertex[2] = p2.clone();
+                            } else if (k == 1) {
+                                possible_vertex[0] = current_point.clone();
+                                possible_vertex[1] = p1.clone();
+                                possible_vertex[2] = p3.clone();
+                            } else {
+                                possible_vertex[0] = current_point.clone();
+                                possible_vertex[1] = p2.clone();
+                                possible_vertex[2] = p3.clone();
+                            }
+                            double curr_area = calc_area(possible_vertex);
 
-            }
-
-            h = Math.ceil((2* area_min) / bases[i]);
-
-            if ((B.x - A.x) == 0){
-                continue;
-            }
-
-            m = (double) (B.y - A.y) / (B.x - A.x);
-            b = A.y - (m* A.x);
-
-            if (m==0){
-                H = new Point(C.x, (int) (A.y+h));
-            } else {
-                coef1[0] = 1/m;
-                coef1[1] = 1.0;
-                coef1[2] = (double) ((A.y + B.y) /2) + ((A.x + B.x)/(2*m));
-
-                coef2[0] = m;
-                coef2[1] = -1.0;
-                coef2[2] = (h*Math.sqrt(Math.pow(m,2)+1)) - b;
-
-                double[] result = syst_equa_2_2(coef1, coef2);
-                H = new Point((int) Math.ceil(result[0]), (int) Math.ceil(result[1]));
-            }
-
-            Point[] ps1 = {A, B, H};
-            Point[] ps2 = {A, C, H};
-            Point[] ps3 = {C, B, H};
-
-            double area_ps1, area_ps2, area_ps3;
-            area_ps1 = calc_area(ps1);
-            area_ps2 = calc_area(ps2);
-            area_ps3 = calc_area(ps3);
-            int areasInZero = 0;
-            areasInZero = (area_ps1==0.0) ? areasInZero+1 : areasInZero;
-            areasInZero = (area_ps2==0.0) ? areasInZero+1 : areasInZero;
-            areasInZero = (area_ps3==0.0) ? areasInZero+1 : areasInZero;
-
-            if (areasInZero > 1){
-                continue;
-            } else if (areasInZero == 1){
-                int dx = C.x - A.x;
-                int dy = C.y - A.y;
-
-                int x_h1 = Math.abs(H.x - A.x);
-                int x_h2 = Math.abs(H.x - C.x);
-                int steps1 = Math.max(x_h1, x_h2);
-                int y_h1 = Math.abs(H.y - A.y);
-                int y_h2 = Math.abs(H.y - C.y);
-                int steps2 = Math.max(y_h1, y_h2);
-
-                int steps = Math.max(steps1, steps2);
-                /*int steps = Math.max(Math.abs(dx), Math.abs(dy));*/
-                double t;
-                int s = 1;
-                i=0;
-                Point M = new Point(0,0);
-                Point[] cur_points = {A, M, H};
-
-                while (i <= steps) {
-                    t = i/steps;
-                    int new_x = (int) (H.x + (s)*(t * dx));
-                    int new_y = (int) (H.y + (s)*(t * dy));
-                    M.x = new_x;
-                    M.y = new_y;
-                    cur_points[1] = M;
-
-                    boolean equals1 = Objects.equals(M.toString(), A.toString());
-                    boolean equals2 = Objects.equals(M.toString(), C.toString());
-                    if (!((calc_area(cur_points) >= area_min) && (!equals1) && (!equals2))) {
-                        if (s > 0){s = (-1)*s;}
-                        else {
-                            i++;
-                            s = (-1)*s;
+                            if ((curr_area >= area_min) && (curr_area < curr_less_area)) {
+                                viable_vertex[0] = possible_vertex[0].clone();
+                                viable_vertex[1] = possible_vertex[1].clone();
+                                viable_vertex[2] = possible_vertex[2].clone();
+                                H.x = possible_vertex[0].x; H.y = possible_vertex[0].y;
+                                curr_less_area = curr_area;
+                                k_win = k;
+                            }
                         }
-                    } else {
-                        break;
                     }
-                }
-
-                for (i=0; i<= steps; i++){
-                    t = (double) i / steps;
-                    int new_x = (int) Math.ceil(A.x + (t * dx));
-                    int new_y = (int) Math.ceil(A.y + (t * dy));
-
-                    M.x = new_x;
-                    M.y = new_y;
-
-                    Point[] cur_points = {A, M, H};
-                    if (calc_area(cur_points) < area_min){
-                        i--;
-                        t = (double) i / steps;
-                        new_x = (int) Math.ceil(B.x + (t * dx));
-                        new_y = (int) Math.ceil(B.y + (t * dy));
-                        M.x = new_x;
-                        M.y = new_y;
-                        cur_points[1] =M;
-                        i++;
-
-                        if ((Objects.equals(M.toString(), B.toString())) || (Objects.equals(M.toString(), C.toString()))){
-                            i++;
-                            t = (double) i / steps;
-                            new_x = (int) Math.ceil(B.x + (t * dx));
-                            new_y = (int) Math.ceil(B.y + (t * dy));
-                            M.x = new_x;
-                            M.y = new_y;
-                            cur_points[1] =M;
-                        }
-
-                        ps1[1] = M;
-                        ps2[2] = M;
-                        ps3[0] = A;
-                        /*Expected
-                        ps1 = {A, M, H};
-                        ps2 = {A, C, M};
-                        ps3 = {A, B, H};*/
-                        break;
-                    }
-                }
-
-                area_ps1 = calc_area(ps1);
-                area_ps2 = calc_area(ps2);
-                area_ps3 = calc_area(ps3);
-
-            }
-
-            areasOrder_points[0] = ps1;
-
-            if (area_ps1 >= area_min){
-                double sum_area = area_ps1 + area_ps2 + area_ps3;
-                if (sum_area <= trial_area){
-                    if (area_ps2 < area_ps3){
-                        areasOrder_points[1] = ps2;
-                        areasOrder_points[2] = ps3;
-                    } else {
-                        areasOrder_points[1] = ps3;
-                        areasOrder_points[2] = ps2;
-                    }
-                    break;
                 }
             }
         }
 
         if (newTrianglesNum == 2){
-            traingles(indexOrder.get(0), areasOrder_points[0]);
-            traingles(indexOrder.get(1), areasOrder_points[1]);
-            traingles(indexOrder.get(2), areasOrder_points[2]);
+            /*Tiene dos hijos, 2 triangulos nuevos*/
+            curr_less_area = trial_area;
+
+            boolean flag = true;
+            boolean found = false;
+            /*For First Vector A*/
+            Point M = new Point(0, 0);
+
+            H = points_inBC.getFirst().clone();
+            Point[] possible_vertex = {p1.clone(), p2.clone(), H.clone()};
+
+            for (int i=1; i < points_inBC.size(); i++){
+                double curr_area = calc_area(possible_vertex);
+
+                if ((curr_area >= area_min) && (curr_area < curr_less_area)) {
+                    Point[] vertex1 = {p1.clone(), p3.clone(), H.clone()};
+                    traingles(indexOrder.get(0), possible_vertex);
+                    traingles(indexOrder.get(1), possible_vertex);
+                    traingles(indexOrder.get(2), vertex1);
+                    found = true;
+                    return true;
+                    break;
+                }
+
+                possible_vertex[0] = p1.clone();
+                possible_vertex[1] = H.clone();
+                M = points_inBC.get(i);
+                possible_vertex[2] = M.clone();
+            }
+
+            /*From AB*/
+            Point N = new Point(0,0);
+            for (int i=0; i<points_inAB.size(); i++){
+                N = points_inAB.get(i).clone();
+                for (int j=0; j<points_inBC.size()-1; j++){
+                    H = points_inBC.get(j).clone();
+                    M = points_inBC.get(j+1).clone();
+
+                    possible_vertex [0] = N.clone();
+                    possible_vertex [1] = H.clone();
+                    possible_vertex [2] = M.clone();
+                    double curr_area = calc_area(possible_vertex);
+
+                    if ((curr_area >= area_min) && (curr_area < curr_less_area)) {
+                        Point[] vertex1 = {p1.clone(), p3.clone(), H.clone()};
+                        traingles(indexOrder.get(0), possible_vertex);
+                        traingles(indexOrder.get(1), possible_vertex);
+                        traingles(indexOrder.get(2), vertex1);
+                        found = true;
+                        return true;
+                        break;
+                    }
+                }
+            }
+
+
+
         }
-        if (newTrianglesNum == 3) {
-            traingles(indexOrder.get(0), areasOrder_points[0]);
-            traingles(indexOrder.get(1), areasOrder_points[1]);
-            traingles(indexOrder.get(2), areasOrder_points[2]);
+
+        if ((curr_less_area == trial_area) || (newTrianglesNum == 2)){
+            /*No encontró puntos internos o tiene dos hijos, 2 triangulos nuevos*/
+            curr_less_area = trial_area;
+
+            /*For First Vector A*/
+            Point M = new Point(0,0);
+            H = points_inBC.getFirst();
+
+
+
+
+            for (int i=0; i<points_inAB.size(); i++){
+
+
+                if (newTrianglesNum==2){Point[] possible_vertex = {p1.clone(), p2.clone(), H.clone()};}
+                else{
+                    Point[] possible_vertex = {p1.clone(), p2.clone(), H.clone()};
+                }
+
+                double curr_area = calc_area(possible_vertex);
+
+            }
+
+        } else {
+            if (newTrianglesNum == 3){
+                Point[] vertex1 = {H.clone(), p1.clone(), p2.clone()};
+                Point[] vertex2 = {H.clone(), p1.clone(), p3.clone()};
+                Point[] vertex3 = {H.clone(), p2.clone(), p3.clone()};
+
+                double area1 = calc_area(vertex1);
+                double area2 = calc_area(vertex2);
+                double area3 = calc_area(vertex3);
+
+                ArrayList<Point[]> all_vertex = new ArrayList<>();
+                ArrayList<Double> all_areas = new ArrayList<>();
+
+                all_vertex.addFirst(vertex1);
+                all_areas.addFirst(area1);
+
+                if (area2 < all_areas.getFirst()){
+                    all_vertex.addFirst(vertex2);
+                    all_areas.addFirst(area2);
+                } else {
+                    all_vertex.add(vertex2);
+                    all_areas.add(area2);
+                }
+
+                if (area3 < all_areas.getFirst()){
+                    all_vertex.addFirst(vertex3);
+                    all_areas.addFirst(area3);
+                } else if (area3 < all_areas.get(1)){
+                    all_vertex.add(1, vertex3);
+                    all_areas.add(1, area3);
+                } else {
+                    all_vertex.add(vertex3);
+                    all_areas.add(area3);
+                }
+
+                traingles(indexOrder.get(0), all_vertex.get(0));
+                traingles(indexOrder.get(1), all_vertex.get(1));
+                traingles(indexOrder.get(2), all_vertex.get(2));
+            }
+
+
         }
+
+        System.out.println("Curr less area: "+ curr_less_area);
 
         return true;
     }
