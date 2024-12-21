@@ -1,9 +1,8 @@
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Image{
+public class aImage{
     static class Point implements Cloneable {
         int x, y;
 
@@ -311,7 +310,6 @@ public class Image{
                     traingles(indexOrder.get(2), vertex1);
                     found = true;
                     return true;
-                    break;
                 }
 
                 possible_vertex[0] = p1.clone();
@@ -340,7 +338,6 @@ public class Image{
                         traingles(indexOrder.get(2), vertex1);
                         found = true;
                         return true;
-                        break;
                     }
                 }
             }
@@ -368,7 +365,7 @@ public class Image{
                     Point[] possible_vertex = {p1.clone(), p2.clone(), H.clone()};
                 }
 
-                double curr_area = calc_area(possible_vertex);
+                /*double curr_area = calc_area(possible_vertex);*/
 
             }
 
